@@ -31,6 +31,8 @@ PDOS_CONFIG_PATH = Path(
 
 REPLACEABLE_EXTENSIONS = {".md", ".json", ".yaml", ".yml", ".ts", ".tsx", ".js", ".jsx"}
 
+IS_WINDOWS = sys.platform == "win32"
+
 
 def copy_template(dest: Path):
     """Copy template to destination, excluding node_modules, .git, package-lock.json."""
@@ -139,11 +141,11 @@ def register_in_supabase(name: str, dest: Path, description: str):
 
 def git_init(dest: Path):
     """Initialize git repo and create initial commit."""
-    subprocess.run(["git", "init"], cwd=dest, check=True, capture_output=True)
-    subprocess.run(["git", "add", "-A"], cwd=dest, check=True, capture_output=True)
+    subprocess.run(["git", "init"], cwd=dest, check=True, capture_output=True, shell=IS_WINDOWS)
+    subprocess.run(["git", "add", "-A"], cwd=dest, check=True, capture_output=True, shell=IS_WINDOWS)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit from pd-launchpad template"],
-        cwd=dest, check=True, capture_output=True,
+        cwd=dest, check=True, capture_output=True, shell=IS_WINDOWS,
     )
 
 
@@ -152,7 +154,7 @@ def npm_install(dest: Path):
     print("Running npm install...")
     result = subprocess.run(
         ["npm", "install"],
-        cwd=dest, capture_output=True, text=True,
+        cwd=dest, capture_output=True, text=True, shell=IS_WINDOWS,
     )
     if result.returncode != 0:
         print(f"WARNING: npm install failed:\n{result.stderr}", file=sys.stderr)
