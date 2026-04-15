@@ -69,6 +69,7 @@ PM (PD-OS) → spec → architect (if new) → plan-from-spec → developer (TDD
 - **No Direct Deploy** — Agents deploy to preview/staging only. Production = `/ship` only.
 - **Evidence Over Claims** — "Done" = tests pass + review approved + preview verified.
 - **Spec Compliance** — Every line of code traces to a spec requirement. No scope creep.
+- **Respect Agent Role Boundaries** — When a plan assigns phases or tasks to specific agents (architect, developer, qa, reviewer), only execute work assigned to your role. After completing your phase, STOP and hand off to the next agent. If running as the main session and a plan has role-assigned phases, ask which agent role to assume before starting. The architect does NOT write application code. The developer does NOT make architecture decisions. The reviewer does NOT modify code.
 
 ---
 
