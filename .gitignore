@@ -25,6 +25,7 @@ dist/
 
 # Supabase
 supabase/.temp/
+supabase/.branches/
 
 # Debug
 npm-debug.log*

@@ -12,7 +12,14 @@
     "test:watch": "vitest",
     "test:unit": "vitest run --dir tests/unit",
     "test:e2e": "npx playwright test",
-    "test:e2e:ui": "npx playwright test --ui"
+    "test:e2e:ui": "npx playwright test --ui",
+    "supabase:init": "npx supabase init --force",
+    "supabase:login": "npx supabase login",
+    "supabase:link": "npx supabase link",
+    "supabase:status": "npx supabase migration list",
+    "supabase:push:dry": "npx supabase db push --dry-run",
+    "supabase:push": "npx supabase db push",
+    "supabase:types": "npx supabase gen types typescript --linked > src/lib/types/database.types.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

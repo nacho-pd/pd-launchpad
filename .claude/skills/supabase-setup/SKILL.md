@@ -26,13 +26,103 @@ the database is never modified directly.
 
 Before running this skill:
 - Supabase CLI is installed (`supabase --version`)
-- Supabase project is initialized (`supabase init` has been run)
-- Local Supabase is running (`supabase start`) or remote project is linked
+- Supabase project is initialized (`supabase init` has been run or `supabase/config.toml` exists)
+- CLI is authenticated and project is linked (see **Section 2.0** for setup)
 - `docs/architecture.md` contains at least an entity list with relationships
 
 ---
 
 ## 2. Thinking Frameworks
+
+### 2.0 Connection & Deployment
+
+This section covers the operational workflow for connecting to Supabase and deploying
+migrations. Section 2.1+ covers schema DESIGN; this section covers DEPLOYMENT.
+
+#### 2.0.1 One-Time Setup (per project clone)
+
+Run these steps once after cloning a project that uses Supabase:
+
+1. **Verify CLI installation:**
+   ```bash
+   npm run supabase:init    # Creates config.toml if missing (--force skips prompts)
+   npx supabase --version   # Confirm CLI is available
+   ```
+
+2. **Authenticate the CLI:**
+   ```bash
+   npm run supabase:login
+   # Interactive: opens browser for token generation
+   # Non-interactive: npx supabase login --token $SUPABASE_ACCESS_TOKEN
+   ```
+   Store your token in `.env.local` as `SUPABASE_ACCESS_TOKEN` for convenience.
+
+3. **Link to remote project:**
+   ```bash
+   npm run supabase:link -- --project-ref <your-project-ref>
+   # Example: npm run supabase:link -- --project-ref cypzayuxowpbpyezbhwc
+   ```
+   This writes the project ref into `supabase/.temp/` (gitignored).
+
+4. **Verify the link works:**
+   ```bash
+   npm run supabase:status   # Lists migrations and their applied/pending status
+   ```
+
+#### 2.0.2 Repeating Deployment Workflow
+
+Use this workflow every time you need to push migrations to the remote database:
+
+1. **Write migrations locally** (see Section 2.1)
+2. **Preview changes (dry run):**
+   ```bash
+   npm run supabase:push:dry
+   ```
+   Review the output — it shows exactly which migrations will be applied.
+3. **STOP — Human reviews dry-run output.** The agent must not proceed without approval.
+4. **Apply migrations (after human approval):**
+   ```bash
+   npm run supabase:push
+   ```
+5. **Verify applied:**
+   ```bash
+   npm run supabase:status
+   ```
+   All migrations should show as "applied".
+6. **Regenerate TypeScript types:**
+   ```bash
+   npm run supabase:types
+   ```
+   This updates `src/lib/types/database.types.ts` to match the remote schema.
+
+#### 2.0.3 Environment Variables Reference
+
+| Variable | File | Used By | Purpose |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` | App (client) | Supabase API endpoint |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` | App (client) | Public anonymous key for RLS-gated access |
+| `SUPABASE_SERVICE_ROLE_KEY` | `.env.local` | App (server only) | Bypasses RLS — NEVER expose to client |
+| `SUPABASE_ACCESS_TOKEN` | `.env.local` | CLI only | Personal access token for `supabase login` |
+
+**Rules:**
+- `.env.example` contains placeholder values and is committed to git.
+- `.env.local` contains real credentials and is gitignored.
+- Never commit real keys to `.env` or any tracked file.
+
+#### 2.0.4 Troubleshooting
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Cannot find supabase/config.toml` | CLI not initialized | Run `npm run supabase:init` |
+| `You need to be logged in` | CLI not authenticated | Run `npm run supabase:login` |
+| `Project ref not found` | Project not linked | Run `npm run supabase:link -- --project-ref <ref>` |
+| `Permission denied` (Windows) | npx can't execute supabase binary | Run `npx supabase` once manually to allow, or use `npm exec supabase` |
+| `supabase` not found | CLI not installed via npm | Run `npm install supabase --save-dev` or install globally |
+| `Migration already applied` | Migration was pushed previously | This is safe — already-applied migrations are skipped |
+| `Conflicting migration` | Local migration was edited after push | Never edit pushed migrations — create a new migration instead |
+| `ENOENT .env.local` | Missing local env file | Copy `.env.example` to `.env.local` and fill in real values |
+
+---
 
 ### 2.1 Migration Workflow
 
@@ -521,10 +611,21 @@ tasks:
     depends_on: [ss-04, ss-07]
     output: "supabase/seed.sql"
 
+  - id: ss-00a
+    name: verify-cli
+    action: "Verify Supabase CLI is installed and config.toml exists (Section 2.0.1 steps 1)"
+    output: "CLI version confirmed, config.toml present"
+
+  - id: ss-00b
+    name: verify-auth-and-link
+    action: "Verify CLI is authenticated and project is linked (Section 2.0.1 steps 2-4)"
+    depends_on: [ss-00a]
+    output: "Auth confirmed, project linked, migration list accessible"
+
   - id: ss-12
     name: apply-migrations-local
     action: "Run `supabase db reset` to apply all migrations to local database"
-    depends_on: [ss-05, ss-08, ss-10, ss-11]
+    depends_on: [ss-00b, ss-05, ss-08, ss-10, ss-11]
     output: "Migration application result (success/failure)"
 
   - id: ss-13
@@ -555,7 +656,9 @@ tasks:
 ### Execution Flow
 
 ```
-ss-01 (data model) ──┐
+ss-00a (verify CLI) ──> ss-00b (verify auth+link)
+                              |
+ss-01 (data model) ──┐       |
 ss-02 (spec)       ──┤──> ss-04 (design schema) ──> ss-05 (schema migration)
 ss-03 (existing)   ──┘         |                      |
                                |                 ss-06 (updated_at fn)
@@ -567,7 +670,7 @@ ss-03 (existing)   ──┘         |                      |
                           ss-11 (seed data)
                                |
                                v
-                    ss-12 (apply migrations locally)
+                    ss-12 (apply migrations locally)  ← requires ss-00b
                          |         |         |
                     ss-13 (verify  ss-14    ss-16
                      RLS)      (test auth) (verify conn)

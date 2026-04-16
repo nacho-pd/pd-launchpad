@@ -1,0 +1,7 @@
+-- =============================================================================
+-- Seed Data (Development Only)
+-- =============================================================================
+-- This file runs on `supabase db reset` (local development).
+-- Keep all inserts idempotent: use ON CONFLICT DO NOTHING or WHERE NOT EXISTS.
+-- NEVER put real credentials or sensitive data here.
+-- =============================================================================
